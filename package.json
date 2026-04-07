@@ -1,0 +1,48 @@
+{
+  "name": "ukrainian-spanish-translator",
+  "version": "1.0.0",
+  "description": "Translate Ukrainian text to Spanish using ChatGPT API with style improvements",
+  "main": "dist/translate.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node -r dotenv/config dist/translate.js",
+    "dev": "node -r dotenv/config node_modules/.bin/tsx translate.ts",
+    "translate": "npm run build && npm start",
+    "batch": "node -r dotenv/config node_modules/.bin/tsx translate_batch.ts",
+    "batch:build": "tsc && node -r dotenv/config dist/translate_batch.js",
+    "batch:status": "node -r dotenv/config node_modules/.bin/tsx batch_utils.ts status",
+    "batch:list": "node -r dotenv/config node_modules/.bin/tsx batch_utils.ts list",
+    "batch:cancel": "node -r dotenv/config node_modules/.bin/tsx batch_utils.ts cancel",
+    "clean": "tsx clean.ts"    
+  },
+  "keywords": [
+    "translation",
+    "ukrainian",
+    "spanish",
+    "chatgpt",
+    "openai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "openai": "^4.68.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

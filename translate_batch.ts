@@ -1,0 +1,212 @@
+import * as fs from 'fs';
+import OpenAI from 'openai';
+import { readFile, splitIntoParagraphs, createBlocks, parseArgs, prompts } from './translate_shared';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface BatchRequest {
+  custom_id: string;
+  method: 'POST';
+  url: '/v1/chat/completions';
+  body: {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    temperature: number;
+  };
+}
+
+interface BatchResponse {
+  custom_id: string;
+  response: {
+    body: {
+      choices: Array<{ message: { content: string } }>;
+    };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function writeBatchFile(requests: BatchRequest[], filename: string): void {
+  fs.writeFileSync(filename, requests.map(r => JSON.stringify(r)).join('\n'), 'utf-8');
+  console.log(`  ✓ Wrote ${requests.length} requests → ${filename}`);
+}
+
+async function submitBatch(batchFile: string, description: string): Promise<string> {
+  console.log(`\n  Uploading ${batchFile}...`);
+  const file = await openai.files.create({
+    file: fs.createReadStream(batchFile),
+    purpose: 'batch',
+  });
+  console.log(`  ✓ File uploaded: ${file.id}`);
+
+  const batch = await openai.batches.create({
+    input_file_id: file.id,
+    endpoint: '/v1/chat/completions',
+    completion_window: '24h',
+    metadata: { description },
+  });
+  console.log(`  ✓ Batch created: ${batch.id}  (${batch.status})`);
+  return batch.id;
+}
+
+async function waitForBatch(batchId: string): Promise<void> {
+  console.log(`\n  Polling batch ${batchId} every 30 s…`);
+  console.log(`  (Run "yarn translate:batch:status ${batchId}" to check manually)`);
+
+  let poll = 0;
+  while (true) {
+    const batch = await openai.batches.retrieve(batchId);
+    poll++;
+    const { total = 0, completed = 0, failed = 0 } = batch.request_counts ?? {};
+    console.log(`  [poll ${poll}] ${batch.status}  ${completed}/${total} done, ${failed} failed`);
+
+    if (batch.status === 'completed') return;
+
+    if (['failed', 'expired', 'cancelled'].includes(batch.status)) {
+      throw new Error(`Batch ${batch.status}: ${JSON.stringify(batch.errors)}`);
+    }
+
+    await new Promise(r => setTimeout(r, 30_000));
+  }
+}
+
+async function downloadResults(batchId: string): Promise<Map<string, string>> {
+  const batch = await openai.batches.retrieve(batchId);
+  if (!batch.output_file_id) throw new Error('No output file available on completed batch.');
+
+  const raw = await (await openai.files.content(batch.output_file_id)).text();
+  const resultMap = new Map<string, string>();
+
+  for (const line of raw.trim().split('\n')) {
+    const r: BatchResponse = JSON.parse(line);
+    resultMap.set(r.custom_id, r.response.body.choices[0]?.message?.content ?? '');
+  }
+
+  console.log(`  ✓ Downloaded ${resultMap.size} results`);
+  return resultMap;
+}
+
+function makeRequests(
+  payloads: Array<{ id: string; content: string }>,
+  model = 'gpt-4o',
+): BatchRequest[] {
+  return payloads.map(({ id, content }) => ({
+    custom_id: id,
+    method: 'POST',
+    url: '/v1/chat/completions',
+    body: { model, messages: [{ role: 'user', content }], temperature: 0.3 },
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Core three-phase pipeline
+// ---------------------------------------------------------------------------
+
+async function runBatchTranslation(
+  blocks: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<string[]> {
+  // ── Phase 1: translate ────────────────────────────────────────────────────
+  console.log('\n' + '='.repeat(60));
+  console.log(`Phase 1 / 3 — Translation  (${sourceLang} → ${targetLang})`);
+  console.log('='.repeat(60));
+
+  const p1Requests = makeRequests(
+    blocks.map((b, i) => ({ id: `block_${i}_step_1`, content: prompts.translate(sourceLang, targetLang, b) })),
+  );
+  writeBatchFile(p1Requests, 'batch_step1.jsonl');
+  const p1Id = await submitBatch('batch_step1.jsonl', 'Step 1: Translation');
+  await waitForBatch(p1Id);
+  const p1Map = await downloadResults(p1Id);
+
+  // ── Phase 2: style ────────────────────────────────────────────────────────
+  console.log('\n' + '='.repeat(60));
+  console.log('Phase 2 / 3 — Style improvement');
+  console.log('='.repeat(60));
+
+  const p2Requests = makeRequests(
+    blocks.map((_, i) => ({
+      id: `block_${i}_step_2`,
+      content: prompts.style(targetLang, p1Map.get(`block_${i}_step_1`) ?? ''),
+    })),
+  );
+  writeBatchFile(p2Requests, 'batch_step2.jsonl');
+  const p2Id = await submitBatch('batch_step2.jsonl', 'Step 2: Style improvement');
+  await waitForBatch(p2Id);
+  const p2Map = await downloadResults(p2Id);
+
+  // ── Phase 3: naturalise ───────────────────────────────────────────────────
+  console.log('\n' + '='.repeat(60));
+  console.log(`Phase 3 / 3 — Naturalisation for native ${targetLang} speakers`);
+  console.log('='.repeat(60));
+
+  const p3Requests = makeRequests(
+    blocks.map((_, i) => ({
+      id: `block_${i}_step_3`,
+      content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? ''),
+    })),
+  );
+  writeBatchFile(p3Requests, 'batch_step3.jsonl');
+  const p3Id = await submitBatch('batch_step3.jsonl', 'Step 3: Naturalisation');
+  await waitForBatch(p3Id);
+  const p3Map = await downloadResults(p3Id);
+
+  return blocks.map((_, i) => p3Map.get(`block_${i}_step_3`) ?? '');
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+async function main(): Promise<void> {
+  const { sourceLang, targetLang, sourceFile, outputFile } = parseArgs(process.argv);
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('❌  OPENAI_API_KEY is not set.');
+    process.exit(1);
+  }
+  if (!fs.existsSync(sourceFile)) {
+    console.error(`❌  Source file not found: ${sourceFile}`);
+    process.exit(1);
+  }
+
+  console.log('='.repeat(60));
+  console.log('Translation — Batch API (50 % cheaper, asynchronous)');
+  console.log('='.repeat(60));
+  console.log(`  ${sourceLang} → ${targetLang}`);
+  console.log(`  Source : ${sourceFile}`);
+  console.log(`  Output : ${outputFile}`);
+
+  const text = readFile(sourceFile);
+  const paragraphs = splitIntoParagraphs(text);
+  const blocks = createBlocks(paragraphs);
+
+  console.log(`\n  ${paragraphs.length} paragraphs → ${blocks.length} blocks`);
+  console.log(`  Total batch requests: ${blocks.length * 3}  (3 phases)`);
+  blocks.forEach((b, i) =>
+    console.log(`  Block ${i + 1}: ${b.substring(0, 80).replace(/\n/g, ' ')}…`),
+  );
+
+  const translated = await runBatchTranslation(blocks, sourceLang, targetLang);
+
+  const output = translated.join('\n\n');
+  fs.writeFileSync(outputFile, output, 'utf-8');
+
+  console.log('\n' + '='.repeat(60));
+  console.log('✅  Batch translation complete');
+  console.log(`  Output : ${outputFile}  (${output.length} chars)`);
+  console.log('  Intermediate JSONL files: batch_step1.jsonl  batch_step2.jsonl  batch_step3.jsonl');
+  console.log('='.repeat(60));
+}
+
+main().catch(err => {
+  console.error('❌  Fatal error:', err);
+  process.exit(1);
+});

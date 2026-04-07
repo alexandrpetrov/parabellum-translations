@@ -1,0 +1,38 @@
+{
+  "name": "ukrainian-spanish-translator",
+  "version": "1.0.0",
+  "description": "Translate Ukrainian text to Spanish using ChatGPT API with style improvements",
+  "main": "dist/translate.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/translate.js",
+    "dev": "ts-node translate.ts",
+    "translate": "npm run build && npm start",
+    "batch": "ts-node translate_batch.ts",
+    "batch:build": "tsc && node dist/translate_batch.js",
+    "batch:status": "ts-node batch_utils.ts status",
+    "batch:list": "ts-node batch_utils.ts list",
+    "batch:cancel": "ts-node batch_utils.ts cancel"
+  },
+  "keywords": [
+    "translation",
+    "ukrainian",
+    "spanish",
+    "chatgpt",
+    "openai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "openai": "^4.68.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
