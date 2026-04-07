@@ -41,3 +41,8 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.bak
+
+# Data Files
+source.txt
+output.txt
+source_cleaned.txt
