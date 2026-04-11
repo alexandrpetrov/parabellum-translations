@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { Glossary, formatGlossaryForPrompt } from './glossary';
 
 /**
  * Read a text file, throwing a clear error on failure.
@@ -41,35 +42,22 @@ export function cleanText(text: string): string {
     const isQuote = (c: string) => /^[«»„"\u201f❝❞\u201c\u2018\u201b❛❜\u2019\u2018\u201a\u2039\u203a]$/.test(c);
     let concat = false;
 
-    // Lowercase start → always concatenate (mid-sentence page break)
     if (ch >= 'a' && ch <= 'z') concat = true;
-
-    // Line starts directly with a quote → always keep as new line
     else if (isQuote(ch)) concat = false;
-
-    // Line starts with a space
     else if (ch === ' ') {
       if (isQuote(firstNonSpace)) {
-        // Space + quote → concatenate only if prev has no sentence-ending punctuation
         if (!SENTENCE_END.test(prev)) concat = true;
       } else if (firstNonSpace >= 'a' && firstNonSpace <= 'z') {
-        // Space + lowercase → always concatenate (mid-sentence break)
         concat = true;
       } else if (firstNonSpace >= 'A' && firstNonSpace <= 'Z') {
-        // Space + uppercase → concatenate only if prev has no sentence-ending punctuation
         if (!SENTENCE_END.test(prev)) concat = true;
       } else if (firstNonSpace && !/[A-Za-z0-9]/.test(firstNonSpace)) {
-        // Space + other non-alphanumeric → concatenate
         concat = true;
       }
-    }
-
-    // Line starts with a non-alphanumeric, non-quote character
-    else if (!/[A-Za-z0-9]/.test(ch) && !isQuote(ch)) {
+    } else if (!/[A-Za-z0-9]/.test(ch) && !isQuote(ch)) {
       concat = true;
     }
 
-    // Starts with a digit → concatenate only if prev has no sentence-ending punctuation
     if (/^[0-9]/.test(line) && !SENTENCE_END.test(prev)) concat = true;
 
     if (concat) {
@@ -144,6 +132,8 @@ export interface TranslateConfig {
   targetLang: string;
   sourceFile: string;
   outputFile: string;
+  skipGlossary: boolean;
+  skipConsistencyPass: boolean;
 }
 
 export function parseArgs(argv: string[]): TranslateConfig {
@@ -152,6 +142,8 @@ export function parseArgs(argv: string[]): TranslateConfig {
   let targetLang = 'Spanish';
   let sourceFile = 'source.txt';
   let outputFile = 'output.txt';
+  let skipGlossary = false;
+  let skipConsistencyPass = false;
 
   const positional: string[] = [];
 
@@ -160,7 +152,11 @@ export function parseArgs(argv: string[]): TranslateConfig {
       sourceFile = args[++i];
     } else if (args[i] === '--out' && args[i + 1]) {
       outputFile = args[++i];
-    } else {
+    } else if (args[i] === '--no-glossary') {
+      skipGlossary = true;
+    } else if (args[i] === '--no-consistency') {
+      skipConsistencyPass = true;
+    } else if (!args[i].startsWith('--')) {
       positional.push(args[i]);
     }
   }
@@ -173,16 +169,91 @@ export function parseArgs(argv: string[]): TranslateConfig {
     targetLang = positional[0];
   }
 
-  return { sourceLang, targetLang, sourceFile, outputFile };
+  return { sourceLang, targetLang, sourceFile, outputFile, skipGlossary, skipConsistencyPass };
 }
 
+// ---------------------------------------------------------------------------
+// Prompts
+// ---------------------------------------------------------------------------
+
 export const prompts = {
-  translate: (src: string, tgt: string, text: string) =>
-    `Translate this text from ${src} to ${tgt}:\n\n${text}\n\nDon't add anything before or after the resulting text. Reply only with the resulting text. Don't use markdown.`,
+  /**
+   * Paragraph translation — glossary-aware.
+   */
+  translate: (src: string, tgt: string, text: string, glossary: Glossary = []) => {
+    const glossarySection = glossary.length > 0
+      ? `\nYou MUST follow this glossary exactly. For every term listed below, use the exact canonical ${tgt} form shown. No alternate spellings, no variant renderings, no exceptions — even if a different form might sound more natural in isolation:\n\n${formatGlossaryForPrompt(glossary)}\n`
+      : '';
 
-  style: (lang: string, text: string) =>
-    `Improve the style of this text in ${lang}:\n\n${text}\n\nDon't add anything before or after the resulting text. Reply only with the resulting text. Don't use markdown.`,
+    return `Translate the following text from ${src} to ${tgt}.${glossarySection}
+Rules:
+- Translate accurately and naturally, preserving the meaning, tone, and register of the original.
+- Keep the paragraph structure intact: the output must have the same number of paragraphs as the input, in the same order.
+- For every term that appears in the glossary above, use exactly the form shown — no deviation.
+- Do not add any text before or after the translation.
+- Do not use markdown.
 
-  naturalize: (lang: string, text: string) =>
-    `Make this text sound natural to a native ${lang} speaker:\n\n${text}\n\nDon't add anything before or after the resulting text. Reply only with the resulting text. Don't use markdown.`,
+Text to translate:
+${text}`;
+  },
+
+  /**
+   * Style improvement — glossary-aware.
+   */
+  style: (lang: string, text: string, glossary: Glossary = []) => {
+    const glossarySection = glossary.length > 0
+      ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
+      : '';
+
+    return `Improve the style of the following ${lang} text.${glossarySection}
+Rules:
+- Improve clarity, flow, and literary quality while preserving meaning and tone.
+- Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
+- Do not add any text before or after the result.
+- Do not use markdown.
+
+Text:
+${text}`;
+  },
+
+  /**
+   * Naturalisation — glossary-aware.
+   */
+  naturalize: (lang: string, text: string, glossary: Glossary = []) => {
+    const glossarySection = glossary.length > 0
+      ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
+      : '';
+
+    return `Make the following ${lang} text sound natural to a native speaker.${glossarySection}
+Rules:
+- Adjust phrasing, word order, and idiomatic expression so the text reads as if originally written in ${lang}.
+- Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
+- Do not add any text before or after the result.
+- Do not use markdown.
+
+Text:
+${text}`;
+  },
+
+  /**
+   * Final consistency normalisation pass.
+   */
+  consistencyPass: (lang: string, text: string, glossary: Glossary) => {
+    return `You are a copy editor performing a final consistency check on a ${lang} translation.
+
+Compare the text below against the canonical glossary. Where any glossary term appears in an incorrect, variant, or inconsistent form, replace it with the exact canonical form shown in the glossary.
+
+Canonical glossary:
+${formatGlossaryForPrompt(glossary)}
+
+Rules:
+- Only fix glossary inconsistencies. Do not rephrase, rewrite, or improve anything else.
+- If a passage already uses the canonical form, leave it completely unchanged.
+- Preserve all paragraph breaks and formatting.
+- Do not add any text before or after the result.
+- Do not use markdown.
+
+Text to check:
+${text}`;
+  },
 };

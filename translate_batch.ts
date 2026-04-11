@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import OpenAI from 'openai';
 import { readFile, splitIntoParagraphs, createBlocks, parseArgs, prompts } from './translate_shared';
+import { extractGlossary, logGlossary, Glossary } from './glossary';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -38,7 +39,7 @@ function writeBatchFile(requests: BatchRequest[], filename: string): void {
 }
 
 async function submitBatch(batchFile: string, description: string): Promise<string> {
-  console.log(`\n  Uploading ${batchFile}...`);
+  console.log(`\n  Uploading ${batchFile}…`);
   const file = await openai.files.create({
     file: fs.createReadStream(batchFile),
     purpose: 'batch',
@@ -95,12 +96,13 @@ async function downloadResults(batchId: string): Promise<Map<string, string>> {
 function makeRequests(
   payloads: Array<{ id: string; content: string }>,
   model = 'gpt-4o',
+  temperature = 0.3,
 ): BatchRequest[] {
   return payloads.map(({ id, content }) => ({
     custom_id: id,
     method: 'POST',
     url: '/v1/chat/completions',
-    body: { model, messages: [{ role: 'user', content }], temperature: 0.3 },
+    body: { model, messages: [{ role: 'user', content }], temperature },
   }));
 }
 
@@ -112,14 +114,19 @@ async function runBatchTranslation(
   blocks: string[],
   sourceLang: string,
   targetLang: string,
+  glossary: Glossary,
 ): Promise<string[]> {
   // ── Phase 1: translate ────────────────────────────────────────────────────
   console.log('\n' + '='.repeat(60));
   console.log(`Phase 1 / 3 — Translation  (${sourceLang} → ${targetLang})`);
+  if (glossary.length > 0) console.log(`  Using glossary with ${glossary.length} entries`);
   console.log('='.repeat(60));
 
   const p1Requests = makeRequests(
-    blocks.map((b, i) => ({ id: `block_${i}_step_1`, content: prompts.translate(sourceLang, targetLang, b) })),
+    blocks.map((b, i) => ({
+      id: `block_${i}_step_1`,
+      content: prompts.translate(sourceLang, targetLang, b, glossary),
+    })),
   );
   writeBatchFile(p1Requests, 'batch_step1.jsonl');
   const p1Id = await submitBatch('batch_step1.jsonl', 'Step 1: Translation');
@@ -134,7 +141,7 @@ async function runBatchTranslation(
   const p2Requests = makeRequests(
     blocks.map((_, i) => ({
       id: `block_${i}_step_2`,
-      content: prompts.style(targetLang, p1Map.get(`block_${i}_step_1`) ?? ''),
+      content: prompts.style(targetLang, p1Map.get(`block_${i}_step_1`) ?? '', glossary),
     })),
   );
   writeBatchFile(p2Requests, 'batch_step2.jsonl');
@@ -150,7 +157,7 @@ async function runBatchTranslation(
   const p3Requests = makeRequests(
     blocks.map((_, i) => ({
       id: `block_${i}_step_3`,
-      content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? ''),
+      content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? '', glossary),
     })),
   );
   writeBatchFile(p3Requests, 'batch_step3.jsonl');
@@ -162,11 +169,38 @@ async function runBatchTranslation(
 }
 
 // ---------------------------------------------------------------------------
+// Final consistency pass (batch version — single request, not batched)
+// Because the full translated text needs to be checked as a whole,
+// and we want sequential ordering, a single standard API call is clearest.
+// ---------------------------------------------------------------------------
+
+async function runConsistencyPass(
+  text: string,
+  targetLang: string,
+  glossary: Glossary,
+): Promise<string> {
+  console.log('\n' + '='.repeat(60));
+  console.log('Final consistency pass — normalising glossary terms');
+  console.log('='.repeat(60));
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: prompts.consistencyPass(targetLang, text, glossary) }],
+    temperature: 0.1,
+  });
+
+  const result = response.choices[0]?.message?.content ?? text;
+  console.log(`  ✓ Done. ${result.length} chars`);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { sourceLang, targetLang, sourceFile, outputFile } = parseArgs(process.argv);
+  const { sourceLang, targetLang, sourceFile, outputFile, skipGlossary, skipConsistencyPass } =
+    parseArgs(process.argv);
 
   if (!process.env.OPENAI_API_KEY) {
     console.error('❌  OPENAI_API_KEY is not set.');
@@ -183,6 +217,8 @@ async function main(): Promise<void> {
   console.log(`  ${sourceLang} → ${targetLang}`);
   console.log(`  Source : ${sourceFile}`);
   console.log(`  Output : ${outputFile}`);
+  if (skipGlossary) console.log(`  Glossary: disabled (--no-glossary)`);
+  if (skipConsistencyPass) console.log(`  Consistency pass: disabled (--no-consistency)`);
 
   const text = readFile(sourceFile);
   const paragraphs = splitIntoParagraphs(text);
@@ -194,14 +230,56 @@ async function main(): Promise<void> {
     console.log(`  Block ${i + 1}: ${b.substring(0, 80).replace(/\n/g, ' ')}…`),
   );
 
-  const translated = await runBatchTranslation(blocks, sourceLang, targetLang);
+  // ── Glossary extraction ───────────────────────────────────────────────────
+  let glossary: Glossary = [];
+  const glossaryFile = outputFile.replace(/(\.[^.]+)?$/, '_glossary.json');
 
-  const output = translated.join('\n\n');
+  if (!skipGlossary) {
+    // Reuse glossary if one already exists from a previous interrupted run
+    if (fs.existsSync(glossaryFile)) {
+      console.log(`\n  Loading existing glossary from ${glossaryFile}…`);
+      try {
+        glossary = JSON.parse(fs.readFileSync(glossaryFile, 'utf-8'));
+        console.log(`  Loaded ${glossary.length} entries`);
+      } catch {
+        console.warn('  ⚠️  Could not parse existing glossary — re-extracting');
+      }
+    }
+
+    if (glossary.length === 0) {
+      console.log('\n' + '='.repeat(60));
+      console.log(`Glossary extraction — ${sourceLang} → ${targetLang}`);
+      console.log('='.repeat(60));
+      console.log(`  Sending full source text (${text.length} chars) to API…`);
+
+      // Glossary extraction is a single real-time call (not batched):
+      // it must complete before any translation batch can be composed.
+      glossary = await extractGlossary(openai, sourceLang, targetLang, text);
+
+      fs.writeFileSync(glossaryFile, JSON.stringify(glossary, null, 2), 'utf-8');
+      console.log(`  Saved glossary → ${glossaryFile}`);
+    }
+
+    console.log(`\n  Glossary (${glossary.length} entries):`);
+    logGlossary(glossary);
+  }
+
+  // ── Three-phase batch translation ─────────────────────────────────────────
+  const translated = await runBatchTranslation(blocks, sourceLang, targetLang, glossary);
+
+  let output = translated.join('\n\n');
   fs.writeFileSync(outputFile, output, 'utf-8');
+
+  // ── Optional final consistency pass ──────────────────────────────────────
+  if (!skipConsistencyPass && glossary.length > 0) {
+    output = await runConsistencyPass(output, targetLang, glossary);
+    fs.writeFileSync(outputFile, output, 'utf-8');
+  }
 
   console.log('\n' + '='.repeat(60));
   console.log('✅  Batch translation complete');
   console.log(`  Output : ${outputFile}  (${output.length} chars)`);
+  if (!skipGlossary) console.log(`  Glossary: ${glossaryFile}`);
   console.log('  Intermediate JSONL files: batch_step1.jsonl  batch_step2.jsonl  batch_step3.jsonl');
   console.log('='.repeat(60));
 }
