@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import OpenAI from 'openai';
-import { readFile, splitIntoParagraphs, createBlocks, parseArgs, prompts } from './translate_shared';
+import { readFile, splitIntoParagraphs, createBlocks, isSectionTitle, parseArgs, prompts } from './translate_shared';
 import { extractGlossary, logGlossary, Glossary } from './glossary';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -116,10 +116,15 @@ async function runBatchTranslation(
   targetLang: string,
   glossary: Glossary,
 ): Promise<string[]> {
-  // ── Phase 1: translate ────────────────────────────────────────────────────
+  // Pre-classify blocks so section titles are excluded from phases 2 and 3.
+  const titleIndices = new Set(blocks.map((b, i) => isSectionTitle(b) ? i : -1).filter(i => i >= 0));
+  const contentIndices = blocks.map((_, i) => i).filter(i => !titleIndices.has(i));
+
+  // ── Phase 1: translate ALL blocks ────────────────────────────────────────
   console.log('\n' + '='.repeat(60));
   console.log(`Phase 1 / 3 — Translation  (${sourceLang} → ${targetLang})`);
   if (glossary.length > 0) console.log(`  Using glossary with ${glossary.length} entries`);
+  console.log(`  ${titleIndices.size} section title block(s) will stop here after this phase`);
   console.log('='.repeat(60));
 
   const p1Requests = makeRequests(
@@ -133,39 +138,57 @@ async function runBatchTranslation(
   await waitForBatch(p1Id);
   const p1Map = await downloadResults(p1Id);
 
-  // ── Phase 2: style ────────────────────────────────────────────────────────
+  // ── Phase 2: style — content blocks only ─────────────────────────────────
   console.log('\n' + '='.repeat(60));
-  console.log('Phase 2 / 3 — Style improvement');
+  console.log(`Phase 2 / 3 — Style improvement  (${contentIndices.length} blocks)`);
   console.log('='.repeat(60));
 
-  const p2Requests = makeRequests(
-    blocks.map((_, i) => ({
-      id: `block_${i}_step_2`,
-      content: prompts.style(targetLang, p1Map.get(`block_${i}_step_1`) ?? '', glossary),
-    })),
-  );
-  writeBatchFile(p2Requests, 'batch_step2.jsonl');
-  const p2Id = await submitBatch('batch_step2.jsonl', 'Step 2: Style improvement');
-  await waitForBatch(p2Id);
-  const p2Map = await downloadResults(p2Id);
+  const p2Map = new Map<string, string>();
+  if (contentIndices.length > 0) {
+    const p2Requests = makeRequests(
+      contentIndices.map(i => ({
+        id: `block_${i}_step_2`,
+        content: prompts.style(targetLang, p1Map.get(`block_${i}_step_1`) ?? '', glossary),
+      })),
+    );
+    writeBatchFile(p2Requests, 'batch_step2.jsonl');
+    const p2Id = await submitBatch('batch_step2.jsonl', 'Step 2: Style improvement');
+    await waitForBatch(p2Id);
+    const downloaded = await downloadResults(p2Id);
+    downloaded.forEach((v, k) => p2Map.set(k, v));
+  } else {
+    console.log('  (skipped — no content blocks)');
+    fs.writeFileSync('batch_step2.jsonl', '', 'utf-8');
+  }
 
-  // ── Phase 3: naturalise ───────────────────────────────────────────────────
+  // ── Phase 3: naturalise — content blocks only ────────────────────────────
   console.log('\n' + '='.repeat(60));
-  console.log(`Phase 3 / 3 — Naturalisation for native ${targetLang} speakers`);
+  console.log(`Phase 3 / 3 — Naturalisation  (${contentIndices.length} blocks)`);
   console.log('='.repeat(60));
 
-  const p3Requests = makeRequests(
-    blocks.map((_, i) => ({
-      id: `block_${i}_step_3`,
-      content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? '', glossary),
-    })),
-  );
-  writeBatchFile(p3Requests, 'batch_step3.jsonl');
-  const p3Id = await submitBatch('batch_step3.jsonl', 'Step 3: Naturalisation');
-  await waitForBatch(p3Id);
-  const p3Map = await downloadResults(p3Id);
+  const p3Map = new Map<string, string>();
+  if (contentIndices.length > 0) {
+    const p3Requests = makeRequests(
+      contentIndices.map(i => ({
+        id: `block_${i}_step_3`,
+        content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? '', glossary),
+      })),
+    );
+    writeBatchFile(p3Requests, 'batch_step3.jsonl');
+    const p3Id = await submitBatch('batch_step3.jsonl', 'Step 3: Naturalisation');
+    await waitForBatch(p3Id);
+    const downloaded = await downloadResults(p3Id);
+    downloaded.forEach((v, k) => p3Map.set(k, v));
+  } else {
+    console.log('  (skipped — no content blocks)');
+    fs.writeFileSync('batch_step3.jsonl', '', 'utf-8');
+  }
 
-  return blocks.map((_, i) => p3Map.get(`block_${i}_step_3`) ?? '');
+  // Reassemble in original order: titles use p1 result, content blocks use p3.
+  return blocks.map((_, i) => {
+    if (titleIndices.has(i)) return p1Map.get(`block_${i}_step_1`) ?? '';
+    return p3Map.get(`block_${i}_step_3`) ?? '';
+  });
 }
 
 // ---------------------------------------------------------------------------

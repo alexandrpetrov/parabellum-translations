@@ -91,38 +91,62 @@ export function splitIntoParagraphs(text: string): string[] {
 }
 
 /**
- * Group paragraphs into blocks of up to 3 non-title paragraphs.
- * Paragraphs shorter than 150 characters are treated as titles and
- * attached to the following block rather than counted toward the limit.
+ * Returns true for paragraphs that are section titles: text wrapped in
+ * square brackets, e.g. "[Chapter One]" or "[Вступ]".
+ * Leading/trailing whitespace is ignored.
+ */
+export function isSectionTitle(para: string): boolean {
+  return /^\[.*\]$/.test(para.trim());
+}
+
+/**
+ * Group paragraphs into blocks with the following rules:
+ *
+ * - Section titles (text wrapped in square brackets) are ALWAYS their own
+ *   standalone block. When one is encountered the current accumulating block
+ *   is flushed first (even if it has fewer than 3 paragraphs), then the
+ *   section title becomes its own single-paragraph block, and a new
+ *   accumulating block starts afterward.
+ *
+ * - Regular paragraphs are grouped up to 3 non-title paragraphs per block.
+ *   Short paragraphs (< 150 chars, excluding section titles) are treated as
+ *   inline sub-headings and do not count toward the 3-paragraph limit; they
+ *   are attached to the following content.
  */
 export function createBlocks(paragraphs: string[]): string[] {
   const blocks: string[] = [];
   let currentBlock: string[] = [];
-  let pendingTitle: string | null = null;
+
+  const flushCurrent = () => {
+    if (currentBlock.length > 0) {
+      blocks.push(currentBlock.join('\n\n'));
+      currentBlock = [];
+    }
+  };
 
   for (const para of paragraphs) {
-    const isTitle = para.length < 150;
+    // Section title → flush whatever we have, emit title as its own block
+    if (isSectionTitle(para)) {
+      flushCurrent();
+      blocks.push(para.trim());
+      continue;
+    }
 
-    if (isTitle) {
-      if (pendingTitle) currentBlock.push(pendingTitle);
-      pendingTitle = para;
-    } else {
-      if (pendingTitle) {
-        currentBlock.push(pendingTitle);
-        pendingTitle = null;
-      }
+    const isInlineHeading = para.length < 150;
+
+    if (isInlineHeading) {
+      // Inline sub-heading: accumulate into current block (doesn't count toward limit)
       currentBlock.push(para);
-
-      const nonTitleCount = currentBlock.filter(p => p.length >= 150).length;
-      if (nonTitleCount >= 3) {
-        blocks.push(currentBlock.join('\n\n'));
-        currentBlock = [];
+    } else {
+      currentBlock.push(para);
+      const bodyCount = currentBlock.filter(p => p.length >= 150 && !isSectionTitle(p)).length;
+      if (bodyCount >= 3) {
+        flushCurrent();
       }
     }
   }
 
-  if (pendingTitle) currentBlock.push(pendingTitle);
-  if (currentBlock.length > 0) blocks.push(currentBlock.join('\n\n'));
+  flushCurrent();
 
   return blocks;
 }
@@ -189,6 +213,7 @@ export const prompts = {
 Rules:
 - Translate accurately and naturally, preserving the meaning, tone, and register of the original.
 - Keep the paragraph structure intact: the output must have the same number of paragraphs as the input, in the same order.
+- If the entire text is a section title enclosed in square brackets (e.g. "[Title]"), translate the title and keep the square brackets in the output — do not remove them.
 - For every term that appears in the glossary above, use exactly the form shown — no deviation.
 - Do not add any text before or after the translation.
 - Do not use markdown.
@@ -208,6 +233,7 @@ ${text}`;
     return `Improve the style of the following ${lang} text.${glossarySection}
 Rules:
 - Improve clarity, flow, and literary quality while preserving meaning and tone.
+- If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.
 - Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
 - Do not add any text before or after the result.
 - Do not use markdown.
@@ -227,6 +253,7 @@ ${text}`;
     return `Make the following ${lang} text sound natural to a native speaker.${glossarySection}
 Rules:
 - Adjust phrasing, word order, and idiomatic expression so the text reads as if originally written in ${lang}.
+- If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.
 - Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
 - Do not add any text before or after the result.
 - Do not use markdown.
@@ -250,6 +277,7 @@ Rules:
 - Only fix glossary inconsistencies. Do not rephrase, rewrite, or improve anything else.
 - If a passage already uses the canonical form, leave it completely unchanged.
 - Preserve all paragraph breaks and formatting.
+- Preserve square brackets around section titles — do not remove them.
 - Do not add any text before or after the result.
 - Do not use markdown.
 

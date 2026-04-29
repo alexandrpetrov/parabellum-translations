@@ -46,3 +46,4 @@ yarn-error.log*
 source.txt
 output.txt
 source_cleaned.txt
+output_glossary.json

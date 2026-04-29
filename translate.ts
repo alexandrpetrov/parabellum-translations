@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import OpenAI from 'openai';
-import { readFile, splitIntoParagraphs, createBlocks, parseArgs, prompts } from './translate_shared';
+import { readFile, splitIntoParagraphs, createBlocks, isSectionTitle, parseArgs, prompts } from './translate_shared';
 import { extractGlossary, logGlossary, Glossary } from './glossary';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -51,7 +51,7 @@ async function processBlock(
   glossary: Glossary,
 ): Promise<string> {
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`Block ${blockNum}/${total}`);
+  console.log(`Block ${blockNum}/${total}${isSectionTitle(block) ? '  [section title]' : ''}`);
   console.log('='.repeat(60));
 
   console.log(`\nStep 1: Translating ${sourceLang} → ${targetLang}…`);
@@ -59,6 +59,11 @@ async function processBlock(
     prompts.translate(sourceLang, targetLang, sanitize(block), glossary),
   );
   console.log(`  Done. ${step1.length} chars`);
+
+  // Section titles only need the translation step — skip style and naturalisation.
+  if (isSectionTitle(block)) {
+    return step1;
+  }
 
   console.log(`\nStep 2: Improving ${targetLang} style…`);
   const step2 = await callChatGPT(prompts.style(targetLang, step1, glossary));
