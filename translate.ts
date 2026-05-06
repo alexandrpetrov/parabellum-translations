@@ -70,7 +70,7 @@ async function processBlock(
   console.log(`  Done. ${step2.length} chars`);
 
   console.log(`\nStep 3: Naturalising for native ${targetLang} speakers…`);
-  const step3 = await callChatGPT(prompts.naturalize(targetLang, step2, glossary));
+  const step3 = await callChatGPT(prompts.naturalize(targetLang, sourceLang, step2, glossary));
   console.log(`  Done. ${step3.length} chars`);
 
   return step3;

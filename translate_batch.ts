@@ -171,7 +171,7 @@ async function runBatchTranslation(
     const p3Requests = makeRequests(
       contentIndices.map(i => ({
         id: `block_${i}_step_3`,
-        content: prompts.naturalize(targetLang, p2Map.get(`block_${i}_step_2`) ?? '', glossary),
+        content: prompts.naturalize(targetLang, sourceLang, p2Map.get(`block_${i}_step_2`) ?? '', glossary),
       })),
     );
     writeBatchFile(p3Requests, 'batch_step3.jsonl');

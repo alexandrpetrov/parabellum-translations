@@ -277,31 +277,50 @@ ${text}`;
 
   /**
    * Literary polish pass — glossary-aware.
-   * Internally analyses stylistic weaknesses then rewrites; outputs only the final text.
+   * Analyses stylistic weaknesses then rewrites; outputs only the final text.
    */
-  naturalize: (lang: string, text: string, glossary: Glossary = []) => {
+  naturalize: (lang: string, srcLang: string, text: string, glossary: Glossary = []) => {
     const glossarySection = glossary.length > 0
       ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
       : '';
 
-    return `Before rewriting, internally analyse the following ${lang} text for stylistic weaknesses, awkward phrasing, unnatural constructions, bureaucratic language, calques, repetitions, overloaded sentences, and anything that sounds non-native or clumsy in literary ${lang}. For each problem, identify the fragment, explain why it is weak, and think of a better alternative. Do not include this analysis in your output.${glossarySection}
-Then rewrite the entire passage according to these requirements:
-- Natural, fluent, cinematic ${lang} suitable for a high-quality historical documentary narration.
-- Preserve all factual meaning and information.
-- Do not shorten the text significantly.
-- Do not invent new facts.
-- Prioritise natural ${lang} rhythm and flow.
-- Avoid bureaucratic, academic, or modern political jargon unless absolutely necessary.
-- Avoid English-like sentence structure and literal translations.
-- Avoid repetitive syntax patterns.
-- Avoid overusing participial constructions.
-- Avoid overly abstract phrasing when a more concrete formulation exists.
-- The text should sound like it was originally written by a skilled native ${lang} documentary writer, not translated from another language.
-- No em dashes.
-- Keep the tone serious, historical, cinematic, and authoritative.
-- If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.
-- Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
-- Output ONLY the rewritten passage. No analysis, no headers, no commentary.
+    return `Analyze the following ${lang} text for stylistic weaknesses, awkward phrasing, unnatural constructions, bureaucratic language, calques, repetitions, incorrect word usage, semantic inaccuracies, weak lexical compatibility, poor euphony, and anything that sounds non-native or clumsy in literary ${lang}, especially in spoken narration.
+
+Follow this exact workflow:
+
+1. First, identify every problematic sentence or construction individually.
+   For each one:
+
+* quote the original fragment;
+* explain precisely why it sounds awkward, unnatural, overloaded, too literal, too bureaucratic, too modern, too translated from ${srcLang}, stylistically weak, semantically inaccurate, lexically incompatible, or unpleasant to hear in spoken ${lang} narration;
+* pay special attention to incorrect word choice, weak lexical compatibility, and situations where words are technically understandable but do not naturally combine in ${lang} literary usage;
+* identify cases where nearby sentences or phrases are overloaded with similar-sounding words, repeated roots, repetitive rhythms, clusters of difficult sounds, monotonous sentence structure, or combinations that reduce the euphony and flow of spoken narration;
+* identify places where the text sounds mechanically written rather than naturally spoken;
+* suggest better alternatives.
+
+2. Then rewrite the entire passage in natural, fluent, cinematic ${lang} suitable for a high-quality historical documentary narration.
+
+Requirements:
+
+* Preserve all factual meaning and information.
+* Do not shorten the text significantly.
+* Do not invent new facts.
+* Prioritize natural ${lang} rhythm, flow, euphony, and spoken readability.
+* The text must sound smooth and natural when read aloud by a narrator.
+* Avoid excessive repetition of roots, similar-sounding words, identical sentence openings, monotonous cadence, and awkward sound combinations.
+* Ensure correct lexical compatibility and precise semantic usage of words.
+* Avoid semantically awkward combinations even if they are grammatically correct.
+* Avoid bureaucratic, academic, or modern political jargon unless absolutely necessary.
+* Avoid ${srcLang}-like sentence structure and literal translations.
+* Avoid repetitive syntax patterns.
+* Avoid overusing participial constructions.
+* Avoid overly abstract phrasing when a more concrete formulation exists.
+* The text should sound like it was originally written by a skilled native ${lang} documentary writer, not translated from ${srcLang}.
+* No em dashes.
+* Keep the tone serious, historical, cinematic, and authoritative.
+* If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.${glossarySection}
+* Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
+* Output ONLY the rewritten passage. No analysis, no headers, no commentary.
 
 Text:
 ${text}`;
