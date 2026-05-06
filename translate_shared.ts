@@ -277,50 +277,61 @@ ${text}`;
 
   /**
    * Literary polish pass — glossary-aware.
-   * Analyses stylistic weaknesses then rewrites; outputs only the final text.
+   * Rewrites for native fluency; outputs only the final text.
    */
   naturalize: (lang: string, srcLang: string, text: string, glossary: Glossary = []) => {
     const glossarySection = glossary.length > 0
       ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
       : '';
 
-    return `Analyze the following ${lang} text for stylistic weaknesses, awkward phrasing, unnatural constructions, bureaucratic language, calques, repetitions, incorrect word usage, semantic inaccuracies, weak lexical compatibility, poor euphony, and anything that sounds non-native or clumsy in literary ${lang}, especially in spoken narration.
+    return `You are a professional historical script editor and translator specializing in cinematic documentary narration in the style of Kings & Generals.
 
-Follow this exact workflow:
+Your task is to rewrite and improve the following text while preserving its meaning, structure, factual content, and overall pacing.
 
-1. First, identify every problematic sentence or construction individually.
-   For each one:
+Core objectives:
 
-* quote the original fragment;
-* explain precisely why it sounds awkward, unnatural, overloaded, too literal, too bureaucratic, too modern, too translated from ${srcLang}, stylistically weak, semantically inaccurate, lexically incompatible, or unpleasant to hear in spoken ${lang} narration;
-* pay special attention to incorrect word choice, weak lexical compatibility, and situations where words are technically understandable but do not naturally combine in ${lang} literary usage;
-* identify cases where nearby sentences or phrases are overloaded with similar-sounding words, repeated roots, repetitive rhythms, clusters of difficult sounds, monotonous sentence structure, or combinations that reduce the euphony and flow of spoken narration;
-* identify places where the text sounds mechanically written rather than naturally spoken;
-* suggest better alternatives.
+* Make the prose sound natural, fluent, and emotionally convincing to a native speaker.
+* Preserve the epic, documentary-style tone without becoming overly theatrical or purple.
+* Improve rhythm, sentence flow, clarity, and stylistic cohesion.
+* Remove awkward phrasing, repetition, stiffness, literal translations, and "AI-sounding" constructions.
+* Keep the narration authoritative, confident, and cinematic.
 
-2. Then rewrite the entire passage in natural, fluent, cinematic ${lang} suitable for a high-quality historical documentary narration.
+Critical style rules:
 
-Requirements:
+* Never rewrite the text into a different structure unless necessary for flow.
+* Preserve paragraph structure and progression of ideas.
+* Do not simplify the content intellectually.
+* Avoid clichés, generic motivational phrasing, and modern corporate language.
+* Avoid excessive abstraction. Prefer concrete historical imagery and precise wording.
+* Avoid repetitive sentence openings and repetitive syntax patterns.
+* Do not use constructions like:
 
-* Preserve all factual meaning and information.
-* Do not shorten the text significantly.
-* Do not invent new facts.
-* Prioritize natural ${lang} rhythm, flow, euphony, and spoken readability.
-* The text must sound smooth and natural when read aloud by a narrator.
-* Avoid excessive repetition of roots, similar-sounding words, identical sentence openings, monotonous cadence, and awkward sound combinations.
-* Ensure correct lexical compatibility and precise semantic usage of words.
-* Avoid semantically awkward combinations even if they are grammatically correct.
-* Avoid bureaucratic, academic, or modern political jargon unless absolutely necessary.
-* Avoid ${srcLang}-like sentence structure and literal translations.
-* Avoid repetitive syntax patterns.
-* Avoid overusing participial constructions.
-* Avoid overly abstract phrasing when a more concrete formulation exists.
-* The text should sound like it was originally written by a skilled native ${lang} documentary writer, not translated from ${srcLang}.
-* No em dashes.
-* Keep the tone serious, historical, cinematic, and authoritative.
+  * "не тільки ..., а й ..."
+  * "це не X, це Y"
+  * sentences without a clear subject and predicate used as dramatic fragments
+* Avoid overusing em dashes.
+* Keep rhetorical weight controlled and professional.
+
+Translation-specific rules (very important):
+
+* Do not translate ${srcLang} phrasing literally if it sounds unnatural in ${lang}.
+* Always check lexical compatibility and natural word pairings in ${lang}.
+* Verbs, adjectives, and nouns must combine naturally for a native speaker.
+* Example:
+
+  * armies can be "виснажені", "знекровлені", "знесилені", or "розбиті"
+  * lands, cities, and countries can be "спустошені"
+* If a literal translation creates an unnatural or semantically incorrect phrase, replace it with a natural ${lang} equivalent while preserving meaning, tone, and intensity.
+* Prioritize how an educated native ${lang} documentary narrator would actually phrase the sentence.
+
+Tone target:
+Imagine this text is being narrated in a high-budget historical documentary for a large audience. The language should feel human, polished, historically grounded, and emotionally controlled.
+
+Pipeline rules:
 * If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.${glossarySection}
 * Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
-* Output ONLY the rewritten passage. No analysis, no headers, no commentary.
+
+Your output should contain only the improved text, with no explanations or comments.
 
 Text:
 ${text}`;
