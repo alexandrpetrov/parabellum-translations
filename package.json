@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node -r dotenv/config dist/translate.js",
     "dev": "node -r dotenv/config node_modules/.bin/tsx translate.ts",
-    "translate": "node -r dotenv/config node_modules/.bin/tsx translate.ts",
+    "translate": "yarn clean && node -r dotenv/config node_modules/.bin/tsx translate.ts",
     "batch": "node -r dotenv/config node_modules/.bin/tsx translate_batch.ts",
     "batch:build": "tsc && node -r dotenv/config dist/translate_batch.js",
     "batch:status": "node -r dotenv/config node_modules/.bin/tsx batch_utils.ts status",

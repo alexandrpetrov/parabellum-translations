@@ -123,21 +123,7 @@ In the Explorer panel, click `source.txt` to open it. Paste your source text her
 
 The file should be plain text (`.txt`), encoded in UTF-8. VS Code handles this automatically.
 
-If your text was copied from a PDF, run the cleaning step first (see below). Otherwise you can skip straight to Step 2.
-
-### Step 2 (optional) — Clean the source text
-
-If the text came from a PDF or AI generation, it may contain broken line breaks, separator lines (`---`, `***`), or missing section headings. In the VS Code terminal, run:
-
-```
-yarn clean
-```
-
-This rewrites `source.txt` in place — the original content is replaced with the cleaned version. Switch back to `source.txt` in the editor (click it in the Explorer, or press `Cmd+Shift+E` to focus the Explorer then click the file) to review the result.
-
-The tool also auto-detects section headings and wraps them in square brackets like `[Chapter One]` — check that these look correct before continuing.
-
-### Step 3 — Run the translation
+### Step 2 — Run the translation
 
 In the VS Code terminal, run:
 
@@ -148,14 +134,15 @@ yarn translate Ukrainian Polish
 Replace `Ukrainian` and `Polish` with the source and target languages of your choice. Language names should be written in English (e.g. `French`, `German`, `Spanish`, `Arabic`).
 
 The tool will:
-1. Extract a glossary of proper nouns and historical terms from your text.
-2. Translate each section.
-3. Improve the style and naturalness of each section.
-4. Run a final consistency pass to normalise all glossary terms.
+1. Clean and normalise `source.txt` (fix broken line breaks, strip separators, detect section headings).
+2. Extract a glossary of proper nouns and historical terms from your text.
+3. Translate each section.
+4. Improve the style and naturalness of each section.
+5. Run a final consistency pass to normalise all glossary terms.
 
 Progress is printed to the terminal as it runs. The translation is saved to `output.txt` after each section, so if something goes wrong mid-way you won't lose the work already done.
 
-### Step 4 — Find your output
+### Step 3 — Find your output
 
 When finished, click `output.txt` in the Explorer panel to open it — that is your translation.
 
