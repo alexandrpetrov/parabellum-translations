@@ -94,7 +94,7 @@ Do this once after downloading the project.
 
 In the VS Code terminal, run:
 ```
-npm install
+yarn
 ```
 
 This downloads the required libraries into a `node_modules` folder. It only needs to be done once.
@@ -130,7 +130,7 @@ If your text was copied from a PDF, run the cleaning step first (see below). Oth
 If the text came from a PDF or AI generation, it may contain broken line breaks, separator lines (`---`, `***`), or missing section headings. In the VS Code terminal, run:
 
 ```
-npm run clean
+yarn clean
 ```
 
 This rewrites `source.txt` in place — the original content is replaced with the cleaned version. Switch back to `source.txt` in the editor (click it in the Explorer, or press `Cmd+Shift+E` to focus the Explorer then click the file) to review the result.
@@ -142,7 +142,7 @@ The tool also auto-detects section headings and wraps them in square brackets li
 In the VS Code terminal, run:
 
 ```
-npm run dev -- Ukrainian Polish
+yarn translate Ukrainian Polish
 ```
 
 Replace `Ukrainian` and `Polish` with the source and target languages of your choice. Language names should be written in English (e.g. `French`, `German`, `Spanish`, `Arabic`).
@@ -165,31 +165,29 @@ A file named `output_glossary.json` is also saved alongside it. It contains all 
 
 ## Useful options
 
-All options are added after `--` at the end of the command.
-
 **Use different input/output files:**
 ```
-npm run dev -- Ukrainian Polish --src mytext.txt --out result.txt
+yarn translate Ukrainian Polish --src mytext.txt --out result.txt
 ```
 
 **Resume a translation that was interrupted** (e.g. after a network error at block 12):
 ```
-npm run dev -- Ukrainian Polish --start=12
+yarn translate Ukrainian Polish --start=12
 ```
 
 **Skip glossary extraction** (faster, but proper nouns may be translated inconsistently):
 ```
-npm run dev -- Ukrainian Polish --no-glossary
+yarn translate Ukrainian Polish --no-glossary
 ```
 
 **Skip the final consistency pass:**
 ```
-npm run dev -- Ukrainian Polish --no-consistency
+yarn translate Ukrainian Polish --no-consistency
 ```
 
 Options can be combined:
 ```
-npm run dev -- Ukrainian Polish --src mytext.txt --out result.txt --start=5
+yarn translate Ukrainian Polish --src mytext.txt --out result.txt --start=5
 ```
 
 ---
