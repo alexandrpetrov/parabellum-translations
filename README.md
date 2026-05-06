@@ -6,9 +6,17 @@ This tool translates a text file from one language to another using AI (GPT-4o).
 
 ## Prerequisites
 
-You need two things before you start: **Node.js** and an **OpenAI API key**.
+You need three things before you start: **VS Code**, **Node.js**, and an **OpenAI API key**.
 
-### 1. Install Node.js
+### 1. Install Visual Studio Code
+
+VS Code is a free code editor that makes it easy to open, edit, and run this tool — all in one window.
+
+1. Go to [https://code.visualstudio.com](https://code.visualstudio.com) and click **Download for Mac** (or Windows).
+2. On Mac: open the downloaded `.zip`, drag **Visual Studio Code** to your Applications folder, then open it.
+3. On Windows: run the installer and follow the prompts — the defaults are fine.
+
+### 2. Install Node.js
 
 Go to [https://nodejs.org](https://nodejs.org) and download the **LTS** installer for your system. Run it and follow the prompts — the defaults are fine.
 
@@ -18,11 +26,11 @@ node --version
 ```
 You should see a version number starting with `v20` or higher.
 
-> **Opening a terminal:**
+> **Opening a terminal (without VS Code):**
 > - **Mac:** press `Cmd + Space`, type *Terminal*, press Enter
 > - **Windows:** press `Win + R`, type `cmd`, press Enter
 
-### 2. Get an OpenAI API key
+### 3. Get an OpenAI API key
 
 1. Go to [https://platform.openai.com](https://platform.openai.com) and sign in (or create an account).
 2. Click your profile icon in the top-right corner, then **API keys**.
@@ -57,36 +65,53 @@ This creates a folder called `parabellum-translations` in your current directory
 
 ---
 
+## Opening the project in VS Code
+
+This is how you work with the project going forward — everything happens inside VS Code.
+
+1. Open VS Code.
+2. Go to **File → Open Folder…** (Mac: `Cmd+O`, Windows: `Ctrl+K Ctrl+O`).
+3. Navigate to the `parabellum-translations` folder and click **Open**.
+
+The left panel (called the **Explorer**) now shows all the files in the project. You can click any file to open and edit it.
+
+### Opening the integrated terminal
+
+Instead of switching to a separate terminal app, use VS Code's built-in terminal — it opens already pointed at the project folder.
+
+- Go to **Terminal → New Terminal** in the top menu bar, or
+- Press `` Ctrl+` `` (backtick) on Mac or Windows.
+
+A terminal pane opens at the bottom of the window. All `npm run …` commands in this guide should be typed here.
+
+---
+
 ## Setup
 
 Do this once after downloading the project.
 
 ### 1. Install dependencies
 
-Open a terminal, navigate to the project folder, and run:
+In the VS Code terminal, run:
 ```
 npm install
 ```
 
 This downloads the required libraries into a `node_modules` folder. It only needs to be done once.
 
-> **Navigating to the project folder:**
-> - **Mac:** `cd /path/to/the/folder`
-> - **Windows:** `cd C:\path\to\the\folder`
->
-> You can also drag the folder onto the terminal window to paste its path.
-
 ### 2. Create the configuration file
 
-In the project folder, create a file named `.env` (note the leading dot, no extension). Open it in any text editor and add this line:
+In the Explorer panel on the left, click the **New File** icon (a page with a `+`) at the top of the file list and name it `.env` (note the leading dot, no extension).
+
+The file opens in the editor. Add this line:
 
 ```
 OPENAI_API_KEY=your-key-here
 ```
 
-Replace `your-key-here` with the API key you copied in the previous step. Save the file.
+Replace `your-key-here` with the API key you copied earlier. Press `Cmd+S` (Mac) or `Ctrl+S` (Windows) to save.
 
-> **On Windows**, if your text editor tries to save it as `.env.txt`, rename it to `.env` in File Explorer. Make sure "Hide extensions for known file types" is turned off in Folder Options so you can see the full filename.
+> **On Windows**, if File Explorer shows the file as `.env.txt`, rename it: right-click → Rename, and remove the `.txt` part. Make sure "Hide extensions for known file types" is turned off in Folder Options so you can see the full filename.
 
 ---
 
@@ -94,32 +119,27 @@ Replace `your-key-here` with the API key you copied in the previous step. Save t
 
 ### Step 1 — Put your text in `source.txt`
 
-Paste or save your source text into the file named `source.txt` in the project folder. The file should be plain text (`.txt`), encoded in UTF-8.
+In the Explorer panel, click `source.txt` to open it. Paste your source text here, then save the file (`Cmd+S` / `Ctrl+S`).
+
+The file should be plain text (`.txt`), encoded in UTF-8. VS Code handles this automatically.
 
 If your text was copied from a PDF, run the cleaning step first (see below). Otherwise you can skip straight to Step 2.
 
 ### Step 2 (optional) — Clean the source text
 
-If the text came from a PDF or AI generation, it may contain broken line breaks, separator lines (`---`, `***`), or missing section headings. Run:
+If the text came from a PDF or AI generation, it may contain broken line breaks, separator lines (`---`, `***`), or missing section headings. In the VS Code terminal, run:
 
 ```
 npm run clean
 ```
 
-This produces a new file called `source_cleaned.txt`. Open it, review the result, and if you're happy with it, replace `source.txt` with it:
-
-- **Mac:**
-  ```
-  cp source_cleaned.txt source.txt
-  ```
-- **Windows:**
-  ```
-  copy source_cleaned.txt source.txt
-  ```
+This rewrites `source.txt` in place — the original content is replaced with the cleaned version. Switch back to `source.txt` in the editor (click it in the Explorer, or press `Cmd+Shift+E` to focus the Explorer then click the file) to review the result.
 
 The tool also auto-detects section headings and wraps them in square brackets like `[Chapter One]` — check that these look correct before continuing.
 
 ### Step 3 — Run the translation
+
+In the VS Code terminal, run:
 
 ```
 npm run dev -- Ukrainian Polish
@@ -137,9 +157,9 @@ Progress is printed to the terminal as it runs. The translation is saved to `out
 
 ### Step 4 — Find your output
 
-When finished, open `output.txt` in the project folder — that is your translation.
+When finished, click `output.txt` in the Explorer panel to open it — that is your translation.
 
-A file named `output_glossary.json` is also saved alongside it. It contains all proper nouns and fixed terms the tool identified (names, places, titles, etc.) and the canonical translation chosen for each. You can open it in any text editor to review or spot-check terminology.
+A file named `output_glossary.json` is also saved alongside it. It contains all proper nouns and fixed terms the tool identified (names, places, titles, etc.) and the canonical translation chosen for each. Click it in the Explorer to review or spot-check terminology.
 
 ---
 
@@ -178,7 +198,7 @@ npm run dev -- Ukrainian Polish --src mytext.txt --out result.txt --start=5
 
 **`OPENAI_API_KEY is not set`** — The `.env` file is missing or the key line is not formatted correctly. Make sure the file is named exactly `.env` (not `.env.txt`) and contains `OPENAI_API_KEY=sk-...` with no spaces around the `=`.
 
-**`Source file not found: source.txt`** — Make sure `source.txt` exists in the project folder and that your terminal is pointed at that folder.
+**`Source file not found: source.txt`** — Make sure `source.txt` exists in the project folder. In VS Code, check the Explorer panel on the left — the file should be visible there.
 
 **API errors / rate limits** — The tool retries automatically up to 3 times with increasing delays. If errors persist, check your OpenAI account for billing issues or quota limits.
 
