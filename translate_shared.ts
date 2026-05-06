@@ -284,12 +284,15 @@ ${text}`;
       ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
       : '';
 
-    return `Analyze the following text as a professional literary editor and translator working between ${srcLang}, the source language, and ${lang}, the target language.
+    return `Analyze the following text as a professional literary editor, historical narrator, and translator working between ${srcLang}, the source language, and ${lang}, the target language.
 
-Your task is not only to check grammar. Your task is to identify all stylistic, semantic, lexical, rhythmic, euphonic, register-related, and translation-related weaknesses that make the text sound unnatural, awkward, mechanically translated, semantically inaccurate, stylistically inappropriate, or unpleasant in native ${lang}.
+Your task is not only to check grammar. Your task is to identify all stylistic, semantic, lexical, rhythmic, historiographical, narrative, and translation-related weaknesses that make the text sound unnatural, mechanically translated, semantically inaccurate, stylistically inconsistent, emotionally artificial, or unpleasant in native ${lang}.
 
 Core principle:
-The final text must not merely communicate the same information as the source. It must create the impression that the text was originally conceived, structured, narrated, and emotionally phrased by a skilled native author in ${lang}.
+The final text must not merely communicate the same information as the source. It must create the impression that the text was originally conceived, structured, narrated, and emotionally phrased by a skilled native author in ${lang} writing a serious historical documentary narration.
+
+However, fidelity remains essential:
+The rewritten text must remain proportionally faithful to the source and must not introduce new narrative layers, emotional framing, historical interpretation, symbolism, or cinematic embellishment that are absent from the original unless absolutely necessary for naturalness in ${lang}.
 
 Follow this exact workflow:
 
@@ -298,73 +301,97 @@ Follow this exact workflow:
 For each one:
 
 * quote the original fragment;
-* explain precisely why it sounds awkward, unnatural, overloaded, stylistically weak, semantically inaccurate, poorly translated, lexically incompatible, rhythmically unpleasant, euphonicly weak, or non-native in ${lang};
-* identify literal translations, lexical calques, conceptual calques, and constructions copied from ${srcLang} that are unnatural in ${lang};
-* identify structures that are normal or natural in ${srcLang} but sound artificial, excessive, or stylistically inappropriate in ${lang};
-* identify incorrect or weak word choice;
-* identify semantic inaccuracies or words used outside their natural meaning, emotional register, contextual range, or domain convention;
+* explain precisely why it sounds awkward, unnatural, overloaded, mechanically translated, semantically inaccurate, stylistically weak, rhythmically unpleasant, historically inappropriate, or non-native in ${lang};
+* identify literal translations, lexical calques, conceptual calques, and structures copied from ${srcLang} that are unnatural in ${lang};
+* identify phrases that are grammatically correct but lexically unnatural or stylistically alien to authentic native prose;
 * identify weak lexical compatibility and unnatural word combinations;
-* evaluate whether words naturally coexist in authentic native usage, not merely whether they are grammatically compatible;
-* identify repetitions of roots, sounds, stress patterns, sentence openings, sentence patterns, cadence, or similar-sounding words that reduce the euphony and flow of the text;
-* identify places where the text is difficult to process by ear when heard once;
-* identify places where the text sounds mechanically translated instead of originally written in ${lang};
-* identify places where literary embellishment, abstraction, dramatization, or stylistic expansion distort the original meaning, tone, specificity, or narrative focus;
+* identify overly abstract, bureaucratic, academic, encyclopedic, or "Wikipedia-like" phrasing;
+* identify unnatural sentence rhythm, repetitive cadence, excessive syntactic symmetry, repeated roots, repeated sentence openings, or sound-heavy constructions that reduce euphony and spoken flow;
+* identify places that sound difficult to process when heard aloud in narration;
+* identify places where the wording sounds emotionally synthetic or algorithmically "high-quality" rather than naturally written;
+* identify places where source-language logic or sentence architecture has been mechanically preserved instead of naturally reconstructed in ${lang};
+* identify places where terminology or phrasing does not match native historical-documentary conventions in ${lang};
 * suggest better alternatives.
 
-2. Then rewrite the entire passage so it reads like an original native text written by a highly skilled writer in ${lang}.
+2. Then rewrite the entire passage so it reads like an original native text written by a highly skilled historical documentary writer in ${lang}.
 
 Requirements:
 
-* Preserve all factual meaning, narrative focus, and informational scope of the original.
-* Preserve the original level of specificity.
+General fidelity and scope:
+
+* Preserve all factual meaning, informational scope, chronology, and narrative focus of the original.
+* Preserve the original level of specificity unless native prose naturally requires compression or clarification.
 * Do not significantly shorten the text unless brevity improves naturalness.
-* Do not invent new facts, imagery, historical framing, chronology, atmosphere, symbolism, metaphors, or narrative elements absent from the source text.
-* Do not expand the historical, emotional, or rhetorical scope of the passage unless necessary for clarity.
-* Improve the text proportionally, not aggressively.
-* Do not rewrite passages that are already natural in ${lang}.
-* Do not replace simple source phrasing with more dramatic, poetic, intellectual, or cinematic alternatives unless necessary for naturalness in ${lang}.
-* Preserve the visual logic and imagery of the original whenever possible.
-* Prioritize precision over embellishment.
-* Preserve the intended tone, atmosphere, emotional register, pacing, and stylistic purpose of the source text.
+* Do not invent new facts, imagery, symbolism, atmosphere, historical framing, emotional interpretation, or narrative subtext absent from the source.
+* Do not over-literarize simple source passages.
+* Improve proportionally, not aggressively.
+
+Narrative style:
+
+* The result must sound like professional historical documentary narration written originally in ${lang}.
+* Prioritize clarity, narrative momentum, spoken naturalness, and emotional authenticity.
+* Prefer concrete narrative phrasing over analytical or abstract exposition.
+* Prefer natural historical storytelling over academic explanation.
+* Prefer formulations naturally used in native historical documentaries, historical literature, and educated popular history writing in ${lang}.
+
+Natural language reconstruction:
+
 * Reconstruct sentences according to the natural instincts of native prose in ${lang}, not according to the structural logic of ${srcLang}.
-* Prefer how an educated native author would naturally express the idea over preserving the grammatical architecture of the source sentence.
+* Prefer how an educated native narrator would naturally express the idea over preserving the grammatical architecture of the source sentence.
 * Do not preserve source syntax merely because it is semantically correct.
 * Detect and eliminate conceptual calques, not only lexical ones.
-* Avoid directly transferring analytical framing, rhetorical structure, abstraction patterns, or narrative pacing from ${srcLang} if they sound unnatural in ${lang}.
-* Avoid translations that sound like a sentence mentally composed in ${srcLang} and then converted into ${lang}.
-* Prioritize natural rhythm, flow, readability, and spoken smoothness in ${lang}.
-* The text must sound natural when read aloud by a narrator.
+* Avoid translations that sound mentally composed in ${srcLang} and then converted into ${lang}.
+
+Oral narration and rhythm:
+
+* The text must sound natural when read aloud.
 * Optimize for real-time auditory comprehension.
-* Prefer clauses that can be processed comfortably when heard once.
+* Prefer sentence structures that can be comfortably processed when heard once.
 * Avoid excessive informational compression inside a single sentence.
-* Break overly analytical, overloaded, or structurally layered sentences into cleaner spoken units when necessary.
-* Prefer spoken narrative rhythm over textual completeness.
-* Prefer oral and narrative clarity over literary density.
+* Break overloaded analytical constructions into cleaner spoken units when necessary.
+* Prefer oral narrative rhythm over textual density.
 * Avoid excessive chaining of modifiers, subordinate clauses, abstract nouns, and noun-heavy constructions.
-* Avoid excessive repetition of roots, sounds, sentence openings, cadence patterns, stress patterns, or syntactic structures.
-* Avoid clusters of similarly stressed constructions, repeated grammatical openings, or mechanically parallel syntax.
-* Ensure natural variation in sentence cadence and melodic contour.
-* Eliminate rhythmically heavy or redundant grammatical constructions where possible.
-* Ensure precise semantic usage and natural lexical compatibility.
-* Avoid semantically awkward combinations even if they are technically grammatical.
-* Reject combinations that sound translated, overly literal, bureaucratic, academic, or semantically over-precise.
-* Prioritize idiomatic native collocation patterns.
-* Do not preserve semantic distinctions with mechanical precision if native speakers would naturally express the idea more fluidly or more simply.
-* Prioritize natural expression over one-to-one semantic mapping.
-* Avoid structures, phrasing patterns, syntax, rhythm, idioms, or stylistic habits that are typical for ${srcLang} but unnatural in ${lang}.
-* Adapt the text to the literary, stylistic, rhythmic, euphonic, and domain-specific norms of native ${lang} prose.
-* Prefer formulations naturally used in native historical documentaries, historical literature, and educated popular history writing in ${lang}, or in the relevant native domain if the text is not historical.
-* Avoid direct translation of domain-specific phrasing if native discourse in ${lang} uses different conventions.
+* Avoid repetitive cadence patterns, repeated stress structures, repetitive sentence openings, or mechanically parallel syntax.
+* Ensure variation in rhythm and sentence melody.
+* Avoid clumsy sound combinations and acoustically heavy phrasing.
+
+Lexical precision and semantic naturalness:
+
+* Ensure precise semantic usage of words.
+* Ensure natural lexical compatibility and authentic native collocations.
+* Reject combinations that are technically grammatical but sound translated or unnatural.
+* Avoid semantically over-precise wording when native prose would express the idea more fluidly.
+* Prefer terminology that sounds historically and culturally natural in ${lang}.
+* Use terminology consistent with native historiographical and documentary conventions.
+* Preserve distinctions between historical fact, religious tradition, legend, and interpretation where relevant.
+* When describing religious traditions or contested historical claims, clearly attribute them when appropriate rather than presenting them as unquestioned objective fact.
+
+Register and stylistic consistency:
+
 * Maintain a stable stylistic register throughout the text.
-* Avoid abrupt shifts between literary narration, academic analysis, bureaucratic language, casual phrasing, and literal translation.
-* Ensure that terminology, sentence rhythm, and word choice belong to the same stylistic layer.
-* Avoid institutional, bureaucratic, encyclopedic, policy-like, or academic-report phrasing unless explicitly required by the source style.
-* Prefer concrete narrative language over abstract analytical phrasing.
-* Prefer verbs over nominalized abstractions whenever natural in ${lang}.
-* Ensure the text feels emotionally and rhetorically human-written rather than algorithmically optimized.
-* Avoid prose that sounds mechanically "high-quality".
+* Avoid abrupt shifts between literary narration, academic prose, bureaucratic language, encyclopedic tone, casual phrasing, and literal translation.
+* Ensure terminology, syntax, rhythm, and emotional tone belong to the same stylistic layer.
+* Avoid institutional, bureaucratic, policy-like, or academic-report phrasing unless explicitly required by the source.
+
+Narrative authenticity:
+
+* Prefer historically grounded narration over generic cinematic language.
+* Avoid artificial dramatic wording unless the source itself is dramatic.
+* Avoid vague "epic" phrasing that weakens specificity.
+* Prefer historically meaningful detail over generalized emotional amplification.
 * Preserve human narrative instinct, not just informational fidelity.
-* The final result should sound as if it was originally written by an educated native author in ${lang}, not translated from another language.
+
+Character and historical agency:
+
+* Prefer active, human-centered phrasing over impersonal abstractions where natural.
+* Clarify agency when this improves readability or historical clarity.
+* Avoid excessive passive constructions if native narration would phrase the idea more dynamically.
+
+Final quality standard:
+
+* The final result must feel indistinguishable from prose originally written by a highly skilled native documentary writer in ${lang}.
+* It must not feel translated, algorithmically polished, academically processed, or structurally inherited from ${srcLang}.
+* It must sound natural, confident, historically literate, emotionally authentic, and fluid when narrated aloud.
 * If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.${glossarySection}
 * Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
 * Output ONLY the rewritten passage. No analysis, no headers, no commentary.
