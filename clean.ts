@@ -1,22 +1,18 @@
 import * as fs from 'fs';
-import * as path from 'path';
-import { cleanText } from './translate_shared';
+import { cleanText, splitIntoParagraphs, removeFillers, markSectionTitles } from './translate_shared';
 
 /**
- * yarn clean [--src source.txt] [--out source_cleaned.txt]
+ * yarn clean [--src source.txt]
  *
  * Reads the source file, cleans PDF copy-paste artefacts, and writes the
- * result to a separate file for review. The original is never modified.
- * Once satisfied, rename/copy the cleaned file to source.txt and translate.
+ * result back to the same file.
  */
 
 const args = process.argv.slice(2);
 let srcFile = 'source.txt';
-let outFile = 'source_cleaned.txt';
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--src' && args[i + 1]) srcFile = args[++i];
-  if (args[i] === '--out' && args[i + 1]) outFile = args[++i];
 }
 
 if (!fs.existsSync(srcFile)) {
@@ -26,14 +22,18 @@ if (!fs.existsSync(srcFile)) {
 
 const raw = fs.readFileSync(srcFile, 'utf-8');
 const cleaned = cleanText(raw);
+const paragraphs = splitIntoParagraphs(cleaned);
+const noFillers = removeFillers(paragraphs);
+const withTitles = markSectionTitles(noFillers);
+const result = withTitles.join('\n\n');
 
-const rawLines = raw.split('\n').length;
-const cleanedLines = cleaned.split('\n').length;
+const fillersRemoved = paragraphs.length - noFillers.length;
+const titlesMarked = withTitles.filter((p, i) => p !== noFillers[i]).length;
 
-fs.writeFileSync(outFile, cleaned, 'utf-8');
+fs.writeFileSync(srcFile, result, 'utf-8');
 
-console.log(`✓ Cleaned: ${srcFile} → ${outFile}`);
-console.log(`  Lines : ${rawLines} → ${cleanedLines}  (−${rawLines - cleanedLines})`);
-console.log(`  Chars : ${raw.length} → ${cleaned.length}  (−${raw.length - cleaned.length})`);
-console.log(`\nReview ${outFile}, then when satisfied:`);
-console.log(`  cp ${outFile} ${srcFile}  &&  yarn translate`);
+console.log(`✓ Cleaned ${srcFile} in place`);
+console.log(`  Paragraphs : ${paragraphs.length} → ${withTitles.length}`);
+console.log(`  Fillers removed  : ${fillersRemoved}`);
+console.log(`  Titles detected  : ${titlesMarked}`);
+console.log(`  Chars : ${raw.length} → ${result.length}`);

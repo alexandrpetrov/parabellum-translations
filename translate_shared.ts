@@ -30,6 +30,7 @@ export function cleanText(text: string): string {
 
   for (const line of lines) {
     if (line.trim() === '') continue;
+    if (!/[a-zA-Z0-9Ѐ-ӿ]/.test(line)) continue; // drop filler lines (e.g. ---)
 
     if (result.length === 0) {
       result.push(line);
@@ -68,6 +69,38 @@ export function cleanText(text: string): string {
   }
 
   return result.join('\n');
+}
+
+/**
+ * Remove paragraphs that contain no alphanumeric characters — e.g. "---", "***".
+ * These are typically AI-generation separator artifacts.
+ */
+export function removeFillers(paragraphs: string[]): string[] {
+  return paragraphs.filter(p => /[a-zA-Z0-9Ѐ-ӿ]/.test(p));
+}
+
+/**
+ * Auto-detect section titles and wrap them in square brackets.
+ * A paragraph is treated as a title when it is:
+ *   - short (≤ 100 chars)
+ *   - does not end with sentence-terminating punctuation (. ! ? …)
+ *   - not already wrapped in []
+ *   - adjacent to at least one long paragraph (> 150 chars)
+ */
+export function markSectionTitles(paragraphs: string[]): string[] {
+  return paragraphs.map((para, i) => {
+    const trimmed = para.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) return para;
+    if (trimmed.length > 100) return para;
+    if (/[.!?…]$/.test(trimmed)) return para;
+
+    const prev = i > 0 ? paragraphs[i - 1].trim() : null;
+    const next = i < paragraphs.length - 1 ? paragraphs[i + 1].trim() : null;
+    const prevLong = prev !== null && prev.length > 150;
+    const nextLong = next !== null && next.length > 150;
+
+    return (prevLong || nextLong) ? `[${trimmed}]` : para;
+  });
 }
 
 /**
@@ -243,20 +276,32 @@ ${text}`;
   },
 
   /**
-   * Naturalisation — glossary-aware.
+   * Literary polish pass — glossary-aware.
+   * Internally analyses stylistic weaknesses then rewrites; outputs only the final text.
    */
   naturalize: (lang: string, text: string, glossary: Glossary = []) => {
     const glossarySection = glossary.length > 0
       ? `\nThe following terms are fixed and must not be changed:\n\n${formatGlossaryForPrompt(glossary)}\n`
       : '';
 
-    return `Make the following ${lang} text sound natural to a native speaker.${glossarySection}
-Rules:
-- Adjust phrasing, word order, and idiomatic expression so the text reads as if originally written in ${lang}.
+    return `Before rewriting, internally analyse the following ${lang} text for stylistic weaknesses, awkward phrasing, unnatural constructions, bureaucratic language, calques, repetitions, overloaded sentences, and anything that sounds non-native or clumsy in literary ${lang}. For each problem, identify the fragment, explain why it is weak, and think of a better alternative. Do not include this analysis in your output.${glossarySection}
+Then rewrite the entire passage according to these requirements:
+- Natural, fluent, cinematic ${lang} suitable for a high-quality historical documentary narration.
+- Preserve all factual meaning and information.
+- Do not shorten the text significantly.
+- Do not invent new facts.
+- Prioritise natural ${lang} rhythm and flow.
+- Avoid bureaucratic, academic, or modern political jargon unless absolutely necessary.
+- Avoid English-like sentence structure and literal translations.
+- Avoid repetitive syntax patterns.
+- Avoid overusing participial constructions.
+- Avoid overly abstract phrasing when a more concrete formulation exists.
+- The text should sound like it was originally written by a skilled native ${lang} documentary writer, not translated from another language.
+- No em dashes.
+- Keep the tone serious, historical, cinematic, and authoritative.
 - If the text is a section title enclosed in square brackets (e.g. "[Title]"), keep the square brackets exactly as-is.
 - Do NOT change any term listed in the glossary above — those are canonical and must remain exactly as written.
-- Do not add any text before or after the result.
-- Do not use markdown.
+- Output ONLY the rewritten passage. No analysis, no headers, no commentary.
 
 Text:
 ${text}`;
